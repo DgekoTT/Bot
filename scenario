@@ -66,8 +66,8 @@ VoxEngine.addEventListener(AppEvents.CallAlerting, e => {
 
 
 function endSession (call) {
-    /*добавляем обработчик события, он сработае когла аулиофайл закончится,
-    затем метод hanfup() повксит трубку*/
+    /*добавляем обработчик события, он сработае когла аудиофайл закончится,
+    затем метод hanfup() повесит трубку*/
     player.addEventListener(PlayerEvents.PlaybackFinished, () => {
         call.hangup();
     });     
