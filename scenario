@@ -1,0 +1,89 @@
+require(Modules.Player);
+
+let call,
+    player,
+    result, 
+    mass =[];
+
+//обработчик события для обработки входящего звонка
+VoxEngine.addEventListener(AppEvents.CallAlerting, e => {
+    call = e.call; // сохраняем объект звонка
+    call.answer();
+
+    // добавляем обработчик события Connected, сработает когда бот поднимет трубку
+    call.addEventListener(CallEvents.Connected, () => {
+
+        //синтизируем нужную речь
+        player = VoxEngine.createTTSPlayer('Введите два числа, разделенных звездочкой и в конце решетка, с клавиатуры телефона', Language.RU_RUSSIAN_FEMALE);
+
+        // отплавляем созданную речь звонящему
+        player.sendMediaTo(call);
+
+        // активируем возможность получения данных с телефон абонента    
+        call.handleTones(true);
+
+        setTimeout(checkMassEmpty, 15000)
+
+        // добавляем обработчик события, который получает цифру с каждого нажатия
+        call.addEventListener(CallEvents.ToneReceived, el => {
+            /* получаем цикл до тех пор пока пользователь не нажмет # */
+            if( el.tone != '#'){ 
+                mass.push(el.tone)
+            } else {
+                // проверяем ввод на валидность
+                if ((mass.length >= 3) && (mass.includes('*')) && (!!getNumbersMass(mass)[0] && !!getNumbersMass(mass)[1])) {
+                     // просчитываем результат 
+                    mass = getNumbersMass(mass);
+
+                    result = +mass[0] + +mass[1];
+
+                    player = VoxEngine.createTTSPlayer(`сумма ${result}`, Language.RU_RUSSIAN_FEMALE);
+                    
+                    player.sendMediaTo(call);
+
+                    endSession (call)
+                } else {
+                    player = VoxEngine.createTTSPlayer('Неправильный ввод, позвоните повторно и выполните условия набора', Language.RU_RUSSIAN_FEMALE);
+                    
+                    player.sendMediaTo(call);
+
+                    endSession (call)
+                };
+                      
+            };
+            //окончание сессии, если пользователь долго вводит символы(лимит 30 сек.)
+            setTimeout(endSession, 30000)
+        });
+
+        /* для корректного завершения звонка обрабатываем событие Dicsonnected,
+        оно сработает когда звонящий повесит трубку*/
+        call.addEventListener(CallEvents.Disconnected, () => {
+            //завершает работу приложения
+            VoxEngine.terminate();
+        });
+    });
+});
+
+
+function endSession (call) {
+    /*добавляем обработчик события, он сработае когла аулиофайл закончится,
+    затем метод hanfup() повксит трубку*/
+    player.addEventListener(PlayerEvents.PlaybackFinished, () => {
+        call.hangup();
+    });     
+};
+
+// проверяем случай когда пользователь не вводит символы
+function checkMassEmpty(mass, call) {
+    if (!mass) {
+        player = VoxEngine.createTTSPlayer(`Вы не ввели числа`, Language.RU_RUSSIAN_FEMALE);
+        player.sendMediaTo(call);
+
+        endSession(call)
+    }
+};
+
+// получаем массив из двух чисел
+function getNumbersMass(mass) {
+    return mass.join('').split('*');
+};
